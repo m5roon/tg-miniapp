@@ -173,12 +173,13 @@ function equals() {
   justEvaluated = true;
 }
 
-// ===== events (works on mobile + Telegram Desktop) =====
+// ===== events (Telegram Desktop + Mobile SAFE) =====
 function handleButton(btn) {
   if (btn.dataset.digit) {
     inputDigit(btn.dataset.digit);
     return;
   }
+
   if (btn.dataset.op) {
     chooseOp(btn.dataset.op);
     return;
@@ -196,13 +197,17 @@ function handleButton(btn) {
 
 const allButtons = Array.from(document.querySelectorAll("button.btn"));
 
+let lastTapAt = 0;
+
 allButtons.forEach((btn) => {
-  // Desktop чаще всего норм с click
-  btn.addEventListener("click", () => handleButton(btn));
+  btn.addEventListener("pointerup", (e) => {
+    const now = Date.now();
+    if (now - lastTapAt < 120) return; // анти-дабл
+    lastTapAt = now;
 
-  // Мобильные/тач/WebView
-  btn.addEventListener("pointerup", () => handleButton(btn));
+    e.preventDefault();
+    e.stopPropagation();
 
-  // Фоллбек для некоторых десктопных WebView
-  btn.addEventListener("mouseup", () => handleButton(btn));
+    handleButton(btn);
+  });
 });
