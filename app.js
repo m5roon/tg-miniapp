@@ -173,18 +173,12 @@ function equals() {
   justEvaluated = true;
 }
 
-// ===== events =====
-document.addEventListener("click", (e) => {
-  const t = e.target;
-  if (!(t instanceof Element)) return;      // важно для Telegram WebView
-  const btn = t.closest("button");          // теперь безопасно
-  if (!btn) return;
-
+// ===== events (works on mobile + Telegram Desktop) =====
+function handleButton(btn) {
   if (btn.dataset.digit) {
     inputDigit(btn.dataset.digit);
     return;
   }
-
   if (btn.dataset.op) {
     chooseOp(btn.dataset.op);
     return;
@@ -198,4 +192,17 @@ document.addEventListener("click", (e) => {
   if (action === "percent") percent();
   if (action === "dot") inputDot();
   if (action === "equals") equals();
+}
+
+const allButtons = Array.from(document.querySelectorAll("button.btn"));
+
+allButtons.forEach((btn) => {
+  // Desktop чаще всего норм с click
+  btn.addEventListener("click", () => handleButton(btn));
+
+  // Мобильные/тач/WebView
+  btn.addEventListener("pointerup", () => handleButton(btn));
+
+  // Фоллбек для некоторых десктопных WebView
+  btn.addEventListener("mouseup", () => handleButton(btn));
 });
