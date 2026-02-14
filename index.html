@@ -1,29 +1,211 @@
 <!doctype html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>iOS Calculator Mini App</title>
 
-    <title>Telegram Mini App</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script defer src="./app.js"></script>
 
-    <!-- Официальный Telegram WebApp API -->
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{
+      --bg: #000000;
+      --txt: #ffffff;
+      --txt-dark: #000000;
 
-    <!-- Наш JS с логикой -->
-    <script defer src="./app.js"></script>
-  </head>
+      --btn-dark: #333333;     /* цифры */
+      --btn-light: #a5a5a5;    /* C, +/-, % */
+      --btn-op: #ff9f0a;       /* операции (оранжевый) */
 
-  <body>
-    <h2>Telegram Mini App</h2>
+      --gap: 12px;
+      --size: 78px;            /* диаметр кнопки */
+      --radius: 999px;
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
 
-    <div id="status">Статус: неизвестно</div>
+    *{ box-sizing:border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      background: var(--bg);
+      color: var(--txt);
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                   "Segoe UI", Roboto, Arial, sans-serif;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding: 18px 14px 24px;
+    }
 
-    <h3>Пользователь</h3>
-    <pre id="user">—</pre>
+    .app{
+      width: min(420px, 100%);
+      display:flex;
+      flex-direction:column;
+      gap: 14px;
+    }
 
-    <button id="btn">Показать initData</button>
+    /* верхняя строка (не как в iOS, но полезно: статус Telegram) */
+    .top{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      opacity: .9;
+      font-size: 12px;
+    }
+    .chip{
+      padding:6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      color: rgba(255,255,255,.75);
+    }
 
-    <h3>initData</h3>
-    <pre id="initData">—</pre>
-  </body>
+    /* дисплей */
+    .display{
+      min-height: 140px;
+      display:flex;
+      flex-direction:column;
+      justify-content:flex-end;
+      align-items:flex-end;
+      padding: 10px 6px 0;
+      gap: 8px;
+    }
+
+    .expr{
+      font-size: 16px;
+      color: rgba(255,255,255,.65);
+      min-height: 20px;
+      text-align:right;
+      word-break: break-word;
+    }
+
+    .value{
+      font-size: 72px;
+      font-weight: 300;
+      line-height: 1;
+      letter-spacing: -0.02em;
+      text-align:right;
+      max-width: 100%;
+      overflow:hidden;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      transform-origin: right center;
+    }
+
+    .pop{
+      animation: pop 260ms var(--ease);
+    }
+    @keyframes pop{
+      0% { transform: translateY(2px) scale(.98); opacity:.85; }
+      60% { transform: translateY(0) scale(1.015); opacity:1; }
+      100%{ transform: translateY(0) scale(1); opacity:1; }
+    }
+
+    /* клавиатура */
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(4, var(--size));
+      grid-auto-rows: var(--size);
+      gap: var(--gap);
+      justify-content:center;
+      padding-bottom: 6px;
+      user-select:none;
+    }
+
+    .btn{
+      border: none;
+      border-radius: var(--radius);
+      font-size: 30px;
+      font-weight: 500;
+      cursor: pointer;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      transition: transform 90ms var(--ease), filter 90ms var(--ease);
+      color: var(--txt);
+      background: var(--btn-dark);
+    }
+    .btn:active{ transform: scale(.97); filter: brightness(1.08); }
+
+    .btn.light{
+      background: var(--btn-light);
+      color: var(--txt-dark);
+      font-weight: 600;
+    }
+
+    .btn.op{
+      background: var(--btn-op);
+      color: var(--txt);
+      font-weight: 700;
+      font-size: 34px;
+    }
+
+    /* подсветка выбранной операции (в iOS: белый фон, оранжевый символ) */
+    .btn.op.active{
+      background: #ffffff;
+      color: var(--btn-op);
+    }
+
+    /* “0” широкая */
+    .btn.zero{
+      grid-column: span 2;
+      justify-content:flex-start;
+      padding-left: 28px;
+    }
+
+    /* скрываем служебный блок, но оставим в DOM (может пригодиться) */
+    .debug{
+      display:none;
+      font-size:12px;
+      color: rgba(255,255,255,.7);
+      background: rgba(255,255,255,.06);
+      border-radius: 14px;
+      padding: 10px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+    <div class="top">
+      <div style="opacity:.75;">iOS Calculator</div>
+      <div id="statusChip" class="chip">…</div>
+    </div>
+
+    <div class="display">
+      <div id="expr" class="expr"></div>
+      <div id="value" class="value">0</div>
+    </div>
+
+    <div class="grid">
+      <button class="btn light" data-action="clear">C</button>
+      <button class="btn light" data-action="sign">+/−</button>
+      <button class="btn light" data-action="percent">%</button>
+      <button class="btn op" data-op="div">÷</button>
+
+      <button class="btn" data-digit="7">7</button>
+      <button class="btn" data-digit="8">8</button>
+      <button class="btn" data-digit="9">9</button>
+      <button class="btn op" data-op="mul">×</button>
+
+      <button class="btn" data-digit="4">4</button>
+      <button class="btn" data-digit="5">5</button>
+      <button class="btn" data-digit="6">6</button>
+      <button class="btn op" data-op="sub">−</button>
+
+      <button class="btn" data-digit="1">1</button>
+      <button class="btn" data-digit="2">2</button>
+      <button class="btn" data-digit="3">3</button>
+      <button class="btn op" data-op="add">+</button>
+
+      <button class="btn zero" data-digit="0">0</button>
+      <button class="btn" data-action="dot">.</button>
+      <button class="btn op" data-action="equals">=</button>
+    </div>
+
+    <pre id="debug" class="debug"></pre>
+  </div>
+</body>
 </html>
