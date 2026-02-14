@@ -175,7 +175,9 @@ function equals() {
 
 // ===== events =====
 document.addEventListener("click", (e) => {
-  const btn = e.target.closest("button");
+  const t = e.target;
+  if (!(t instanceof Element)) return;      // важно для Telegram WebView
+  const btn = t.closest("button");          // теперь безопасно
   if (!btn) return;
 
   if (btn.dataset.digit) {
